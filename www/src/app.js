@@ -89,17 +89,14 @@ function renderOnboarding() {
     class: 'avatar' + (a === avatar ? ' selected' : ''), 'aria-label': a, dataset: { avatar: a },
     onClick: (e) => { sfx.tap(); avatar = a; buttons.forEach((b) => b.classList.toggle('selected', b === e.currentTarget)); },
   }, a));
-  const name = h('input', { class: 'name-input', placeholder: T.namePlaceholder, maxlength: '14', autocomplete: 'off' });
-
   app.append(h('section', { class: 'screen onboarding' },
     h('div', { class: 'mascots' }, h('span', { class: 'mascot' }, '🦄'), h('h1', { class: 'logo' }, 'Cuvinte ', h('span', {}, 'Vesele')), h('span', { class: 'mascot late' }, '🦕')),
     h('p', { class: 'tagline' }, T.tagline),
     h('p', { class: 'lead' }, T.pickBuddy),
     h('div', { class: 'avatars' }, buttons),
-    name,
     h('button', { class: 'btn primary big', onClick: () => {
       sfx.tap();
-      state.profile = { name: name.value.trim().slice(0, 14), avatar };
+      state.profile = { name: '', avatar };
       save(state);
       go('#/acasa');
     } }, T.letsPlay)));
@@ -112,7 +109,7 @@ function renderHome() {
   app.append(h('section', { class: 'screen home' },
     h('header', { class: 'topbar' },
       h('button', { class: 'chip', 'aria-label': T.stickerBook, onClick: () => { sfx.tap(); go('#/abtibilduri'); } },
-        h('span', { class: 'chip-emoji' }, p.avatar), h('span', {}, p.name || T.defaultName)),
+        h('span', { class: 'chip-emoji' }, p.avatar), p.name && h('span', {}, p.name)),
       h('div', { class: 'chip stars-chip' }, '⭐ ', String(totalStars())),
       h('button', { class: 'icon-btn', 'aria-label': T.parents, onClick: () => { sfx.tap(); go('#/parinti'); } }, '🔒')),
     h('div', { class: 'scroll' },
@@ -344,7 +341,7 @@ function renderParents() {
     h('div', { class: 'scroll' },
       h('div', { class: 'card' },
         h('h3', {}, T.profile),
-        h('div', { class: 'row' }, h('span', {}, T.name), nameInput),
+        h('div', { class: 'row' }, h('span', {}, T.nameOptional), nameInput),
         h('div', { class: 'row' }, h('div', { class: 'mini-avatars' }, avatarBtns)),
         h('div', { class: 'row' }, savedTag,
           h('button', { class: 'btn', onClick: () => {
@@ -428,6 +425,18 @@ loadClips().finally(() => {
 });
 render();
 
+let pendingReload = false;
+const onHome = () => ['', 'acasa'].includes(route()[0] || '');
+function applyUpdateIfIdle() {
+  if (pendingReload && onHome()) { pendingReload = false; location.reload(); }
+}
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  let hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController) { pendingReload = true; applyUpdateIfIdle(); }
+    hadController = true;
+  });
+  navigator.serviceWorker.register('sw.js').then((reg) => reg.update().catch(() => {})).catch(() => {});
+  window.addEventListener('hashchange', applyUpdateIfIdle);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') applyUpdateIfIdle(); });
 }

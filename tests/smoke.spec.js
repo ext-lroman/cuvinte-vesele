@@ -22,13 +22,14 @@ const expectResult = async (page, lit) => {
 
 test('primul ecran → acasă → temă → Învață până la capăt', async ({ page }) => {
   await page.goto('/');
+  await expect(page.locator('.name-input')).toHaveCount(0);           // ea nu scrie: doar alege personajul
   await page.locator('.avatar[data-avatar="🦕"]').click();
-  await page.locator('.name-input').fill('Maria');
   await page.getByRole('button', { name: 'Hai să ne jucăm!' }).click();
 
   await expect(page.locator('.adventure-card')).toBeVisible();
   await expect(page.locator('.topic-card')).toHaveCount(11);
-  await expect(page.locator('.chip').first()).toContainText('Maria');
+  await expect(page.locator('.chip').first()).toContainText('🦕');
+  expect((await saved(page)).profile).toEqual({ name: '', avatar: '🦕' });
   await page.locator('.topic-card[data-topic="animale"]').click();
   await expect(page.locator('.game-card')).toHaveCount(5);          // fără „Scrie cuvântul” (litere oprite)
 

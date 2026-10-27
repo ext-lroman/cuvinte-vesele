@@ -52,6 +52,7 @@ export const T = {
   gateQuestion: (a, b) => `Cât fac ${a} + ${b}?`,
   profile: 'Profilul copilului',
   name: 'Nume',
+  nameOptional: 'Nume (opțional)',
   save: 'Salvează',
   saved: 'Salvat ✓',
   settings: 'Setări',
