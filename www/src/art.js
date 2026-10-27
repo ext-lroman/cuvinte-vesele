@@ -1,63 +1,43 @@
 // Desenele aplicației (SVG): unicorn, dinozauri, curcubeu, cornul. Fiecare zonă de colorat are data-region.
 import { COLORS } from './content.js';
+import { UNICORN_TOY } from './art/unicornToy.js';
 
 const OUTLINE = '#4A3B5C';
 const hexOf = (id) => (COLORS.find((c) => c.id === id) || {}).hex || id;
 
-function build(viewBox, inner, { cls = 'art', fills = {}, defaults = {}, blank = false } = {}) {
+function build(viewBox, inner, { cls = 'art', fills = {}, defaults = {}, blank = false, outlineWidth = null } = {}) {
   const el = new DOMParser().parseFromString(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" class="${cls}"><g stroke="${OUTLINE}" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">${inner}</g></svg>`,
     'image/svg+xml').documentElement;
   for (const node of el.querySelectorAll('[data-region]')) {
     const r = node.dataset.region;
     const chosen = fills && fills[r];
-    node.setAttribute('fill', chosen ? hexOf(chosen) : blank ? '#FFFFFF' : (defaults[r] || '#FFFFFF'));
+    const fill = chosen ? hexOf(chosen) : blank ? '#FFFFFF' : (defaults[r] || '#FFFFFF');
+    node.setAttribute('fill', fill);
+    node.style.fill = fill;                                   // bate și umplerea din style="" (desene din Inkscape)
+    if (outlineWidth) { node.style.stroke = blank || chosen ? OUTLINE : ''; node.style.strokeWidth = `${outlineWidth}px`; node.style.strokeLinejoin = 'round'; }
   }
   return el;
 }
 
 // ---- unicorn ----------------------------------------------------------------------
-const UNICORN_DEFAULTS = {
-  body: '#FFF8FF', belly: '#FFE4F1', mane1: '#FF8FAB', mane2: '#C77DFF', mane3: '#8ECAE6', tail: '#FF8FAB',
-  horn: '#FFD60A', hooves: '#C77DFF', snout: '#FFE4F1', cheek: '#FFB3C6', star: '#FFD60A', legs: '#FFF8FF',
-};
+// Desenul vine din www/src/art/unicornToy.js (OpenClipart „toy unicorn”, CC0). Privește spre dreapta;
+// flip=true îl întoarce spre stânga. data-faces spune încotro privește SVG-ul rezultat.
+const W = Number(UNICORN_TOY.viewBox.split(' ')[2]);
 export function unicornSVG({ fills, blank = false, horn = true, flip = false } = {}) {
-  const legs = [150, 200, 255, 300].map((x, i) => `<rect data-region="legs" x="${x}" y="${i === 1 || i === 2 ? 262 : 255}" width="40" height="92" rx="18"/>`);
-  const hooves = [150, 200, 255, 300].map((x) => `<rect data-region="hooves" x="${x}" y="${330}" width="40" height="22" rx="9"/>`);
-  const inner = `<g ${flip ? 'transform="translate(420 0) scale(-1 1)"' : ''}>
-    <path data-region="tail" d="M330 190 C 378 150, 418 190, 402 240 C 392 272, 410 300, 372 312 C 352 302, 362 272, 350 250 C 338 230, 322 222, 330 190 Z"/>
-    ${legs[0]}${legs[3]}
-    <ellipse data-region="body" cx="232" cy="230" rx="118" ry="82"/>
-    ${legs[1]}${legs[2]}
-    ${hooves.join('')}
-    <ellipse data-region="belly" cx="245" cy="268" rx="72" ry="40" stroke="none"/>
-    <polygon data-region="star" points="300,215 306,232 324,232 310,243 315,260 300,250 285,260 290,243 276,232 294,232" stroke-width="4"/>
-    <rect data-region="body" x="112" y="95" width="74" height="130" rx="34" transform="rotate(-28 149 160)"/>
-    <ellipse data-region="mane1" cx="190" cy="78" rx="42" ry="24" transform="rotate(-28 190 78)"/>
-    <ellipse data-region="mane2" cx="222" cy="112" rx="44" ry="26" transform="rotate(-34 222 112)"/>
-    <ellipse data-region="mane3" cx="250" cy="150" rx="42" ry="24" transform="rotate(-40 250 150)"/>
-    <ellipse data-region="body" cx="112" cy="128" rx="62" ry="52"/>
-    <ellipse data-region="snout" cx="62" cy="146" rx="36" ry="27"/>
-    <circle cx="52" cy="150" r="4" fill="${OUTLINE}" stroke="none"/>
-    <path d="M40 162 Q 50 170 62 164" fill="none" stroke-width="4"/>
-    <path data-region="body" d="M140 82 L 156 42 L 178 88 Z"/>
-    <path data-region="snout" d="M149 80 L 157 58 L 168 83 Z" stroke="none"/>
-    <ellipse data-region="mane1" cx="104" cy="78" rx="26" ry="15" transform="rotate(-18 104 78)"/>
-    <g data-horn="1" ${horn ? '' : 'visibility="hidden"'}>
-      <path data-region="horn" d="M110 74 L 98 6 L 152 70 Z"/>
-      <path d="M108 60 L 134 56 M 104 46 L 124 42 M 101 32 L 114 29" fill="none" stroke-width="3"/>
-    </g>
-    <circle cx="124" cy="122" r="13" fill="#fff" stroke-width="4"/>
-    <circle cx="127" cy="124" r="7" fill="${OUTLINE}" stroke="none"/>
-    <circle cx="130" cy="120" r="2.5" fill="#fff" stroke="none"/>
-    <path d="M112 106 L 106 98 M 120 104 L 118 95" fill="none" stroke-width="3"/>
-    <circle data-region="cheek" cx="86" cy="152" r="9" stroke="none" opacity=".8"/>
-  </g>`;
-  return build('0 0 420 380', inner, { fills, blank, defaults: UNICORN_DEFAULTS });
+  const inner = flip ? `<g transform="translate(${W} 0) scale(-1 1)">${UNICORN_TOY.inner}</g>` : UNICORN_TOY.inner;
+  const el = build(UNICORN_TOY.viewBox, inner, { fills, blank, defaults: UNICORN_TOY.defaults, outlineWidth: 2.5 });
+  el.dataset.faces = flip ? 'left' : 'right';
+  if (!horn) el.querySelector('[data-horn]').setAttribute('visibility', 'hidden');
+  return el;
 }
 
+// Puncte de ancorare (fracții din lățimea/înălțimea desenului) pentru accesorii, hrană etc.
+export const UNICORN_ANCHORS = { horn: { x: 0.91, y: 0.03 }, head: { x: 0.80, y: 0.20 }, eye: { x: 0.80, y: 0.41 }, neck: { x: 0.68, y: 0.52 }, back: { x: 0.45, y: 0.58 }, tail: { x: 0.15, y: 0.50 } };
+export const DINO_ANCHORS = { trex: { mouth: { x: 0.21, y: 0.47 }, head: { x: 0.28, y: 0.25 } }, stegozaur: { mouth: { x: 0.12, y: 0.62 } } };
+
 export function hornPieceSVG() {
-  return build('0 0 60 80', `<polygon data-region="horn" points="12,72 30,6 48,72"/><path d="M15 60 L 44 58 M 19 46 L 40 44 M 23 32 L 36 31" fill="none" stroke-width="3"/>`, { cls: 'art horn-piece', defaults: { horn: '#FFD60A' } });
+  return build('0 0 60 80', `<polygon data-region="horn" points="12,72 30,6 48,72"/><path d="M15 60 L 44 58 M 19 46 L 40 44 M 23 32 L 36 31" fill="none" stroke-width="3"/>`, { cls: 'art horn-piece', defaults: { horn: '#892ca0' } });
 }
 
 // ---- dinozauri ----------------------------------------------------------------------

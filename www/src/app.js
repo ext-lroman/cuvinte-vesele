@@ -16,6 +16,7 @@ import * as coloring from './adventure/coloring.js';
 import * as dinoNames from './adventure/dinoNames.js';
 import * as rainbow from './adventure/rainbow.js';
 import * as road from './adventure/road.js';
+import { LEVELS as ROAD_LEVELS, LEVEL_COUNT as ROAD_LEVEL_COUNT } from './adventure/road.js';
 
 const MODULES = { learn, listen, memory, shadow, count, spell };
 const ADVENTURE_MODULES = { corn: horn, unicorni: coloring, dinozauri: coloring, nume: dinoNames, curcubeu: rainbow, drum: road };
@@ -27,6 +28,7 @@ state.stickers = state.stickers || [];
 state.adventure = state.adventure || { steps: {}, art: {} };
 state.adventure.steps = state.adventure.steps || {};
 state.adventure.art = state.adventure.art || {};
+state.roadLevels = state.roadLevels || {};             // nivelele 2+ ale Drumului prietenilor (nivelul 1 = pasul aventurii)
 setSoundEnabled(state.settings.sound);
 const app = document.getElementById('app');
 let cleanup = null;
@@ -48,8 +50,11 @@ const topicStars = (t) => gamesFor(t).reduce((s, g) => s + gameStars(t.id, g.id)
 const topicMax = (t) => gamesFor(t).length * 3;
 const topicDone = (t) => state.stickers.includes(t.id) || gamesFor(t).every((g) => gameStars(t.id, g.id) > 0);
 const adventureStars = () => ADVENTURE.reduce((s, st) => s + (state.adventure.steps[st.id] || 0), 0);
+const roadStars = (n) => (n === 1 ? state.adventure.steps.drum || 0 : state.roadLevels[n] || 0);
+const roadUnlocked = (n) => n === 1 || roadStars(n - 1) > 0;
+const roadTotal = () => { let s = 0; for (let n = 2; n <= ROAD_LEVEL_COUNT; n++) s += roadStars(n); return s; };
 const adventureDone = () => ADVENTURE.every((st) => (state.adventure.steps[st.id] || 0) > 0);
-const totalStars = () => TOPICS.reduce((s, t) => s + topicStars(t), 0) + adventureStars();
+const totalStars = () => TOPICS.reduce((s, t) => s + topicStars(t), 0) + adventureStars() + roadTotal();
 
 // ---- rute -----------------------------------------------------------------
 function go(hash) {
@@ -66,7 +71,7 @@ function render() {
   switch (screen) {
     case 'tema': return renderTopic(a);
     case 'joc': return renderPlay(a, b);
-    case 'aventura': return a ? renderAdventureStep(a) : renderAdventure();
+    case 'aventura': return a === 'drum' ? (b ? renderRoadLevel(Number(b)) : renderRoadLevels()) : a ? renderAdventureStep(a) : renderAdventure();
     case 'abtibilduri': return renderStickers();
     case 'parinti': return renderParents();
     default: return renderHome();
@@ -108,8 +113,9 @@ function renderHome() {
   const advNext = ADVENTURE.find((st) => !(state.adventure.steps[st.id] > 0));
   app.append(h('section', { class: 'screen home' },
     h('header', { class: 'topbar' },
-      h('button', { class: 'chip', 'aria-label': T.stickerBook, onClick: () => { sfx.tap(); go('#/abtibilduri'); } },
+      h('button', { class: 'chip' + (p.name ? '' : ' avatar-only'), 'aria-label': T.stickerBook, onClick: () => { sfx.tap(); go('#/abtibilduri'); } },
         h('span', { class: 'chip-emoji' }, p.avatar), p.name && h('span', {}, p.name)),
+      !p.name && h('span', { class: 'spacer' }),
       h('div', { class: 'chip stars-chip' }, '⭐ ', String(totalStars())),
       h('button', { class: 'icon-btn', 'aria-label': T.parents, onClick: () => { sfx.tap(); go('#/parinti'); } }, '🔒')),
     h('div', { class: 'scroll' },
@@ -230,12 +236,12 @@ function renderAdventure() {
       h('div', { class: 'steps' }, ADVENTURE.map((st, i) => {
         const stars = state.adventure.steps[st.id] || 0;
         const isNext = st === next;
-        return h('button', { class: 'step-card' + (stars ? ' done' : '') + (isNext ? ' next' : ''), dataset: { step: st.id }, onClick: () => { sfx.tap(); go(`#/aventura/${st.id}`); } },
+        return h('button', { class: 'step-card' + (stars ? ' done' : '') + (isNext ? ' next' : ''), dataset: { step: st.id }, onClick: () => { sfx.tap(); go(st.id === 'drum' && stars ? '#/aventura/drum' : `#/aventura/${st.id}`); } },
           h('span', { class: 'step-no' }, String(i + 1)),
           h('span', { class: 'step-icon' }, st.emoji),
           h('span', { class: 'game-text' },
             h('span', { class: 'game-name' }, st.ro),
-            h('span', { class: 'game-hint' }, st.hint),
+            h('span', { class: 'game-hint' }, st.id === 'drum' ? `${st.hint} · ${T.levels}: ${[...Array(ROAD_LEVEL_COUNT)].filter((_, i) => roadStars(i + 1) > 0).length}/${ROAD_LEVEL_COUNT}` : st.hint),
             stars ? starsEl(stars) : h('span', { class: 'step-cta' }, isNext ? T.start : '')));
       })),
       next && h('div', { class: 'center-row' },
@@ -274,10 +280,61 @@ function finishAdventureStep(st, stars, screen) {
     actions: [
       next
         ? h('button', { class: 'btn primary big', dataset: { next: next.id }, onClick: () => { sfx.tap(); go(`#/aventura/${next.id}`); } }, `${next.emoji} ${T.nextStep}`)
-        : h('button', { class: 'btn primary big', onClick: () => { sfx.tap(); go('#/abtibilduri'); } }, `📒 ${T.stickers}`),
+        : st.id === 'drum'
+          ? h('button', { class: 'btn primary big', dataset: { nextLevel: '2' }, onClick: () => { sfx.tap(); go('#/aventura/drum/2'); } }, `🛤️ ${T.nextLevel}`)
+          : h('button', { class: 'btn primary big', onClick: () => { sfx.tap(); go('#/abtibilduri'); } }, `📒 ${T.stickers}`),
       h('button', { class: 'btn', onClick: () => { sfx.tap(); render(); } }, `🔁 ${T.playAgain}`),
       h('button', { class: 'btn ghost', onClick: () => { sfx.tap(); go('#/aventura'); } }, T.backToAdventure),
     ],
+  });
+}
+
+// ---- Drumul prietenilor: nivele --------------------------------------------------------
+function renderRoadLevels() {
+  const st = ADVENTURE.find((x) => x.id === 'drum');
+  app.append(h('section', { class: 'screen', style: { '--c': '#C77DFF' } },
+    topbar({ back: '#/aventura', title: `${st.emoji} ${st.ro}`, right: h('div', { class: 'chip' }, '⭐ ', String(roadStars(1) + roadTotal())) }),
+    h('div', { class: 'scroll' },
+      h('p', { class: 'lead center' }, st.hint),
+      h('div', { class: 'levels' }, [...Array(ROAD_LEVEL_COUNT)].map((_, i) => {
+        const n = i + 1;
+        const L = ROAD_LEVELS[n];
+        const unlocked = roadUnlocked(n);
+        const feats = [L.stars && T.roadFeatures.stars, L.river && T.roadFeatures.river, L.limited && T.roadFeatures.limited].filter(Boolean).join(' · ');
+        return h('button', { class: 'level-card', dataset: { level: String(n) }, disabled: !unlocked, 'aria-label': `${T.level} ${n}`, onClick: () => { sfx.tap(); go(`#/aventura/drum/${n}`); } },
+          h('span', { class: 'level-no' }, unlocked ? String(n) : '🔒'),
+          h('span', { class: 'game-name' }, `${T.level} ${n}`),
+          h('span', { class: 'level-meta' }, `${L.size}×${L.size}${feats ? ' · ' + feats : ''}`),
+          unlocked ? starsEl(roadStars(n)) : h('span', { class: 'level-meta' }, T.lockedLevel));
+      })))));
+}
+
+function renderRoadLevel(n) {
+  const st = ADVENTURE.find((x) => x.id === 'drum');
+  if (!ROAD_LEVELS[n] || !roadUnlocked(n)) return go('#/aventura/drum');
+  if (n === 1) return renderAdventureStep('drum');
+  playScreen({
+    back: '#/aventura/drum', title: `${st.emoji} ${T.level} ${n}`, color: '#C77DFF', mod: road,
+    ctxExtra: { level: n, art: state.adventure.art },
+    onFinish: (stars, screen) => {
+      state.roadLevels[n] = Math.max(state.roadLevels[n] || 0, stars);
+      save(state);
+      const text = praise();
+      sfx.win();
+      confetti();
+      setTimeout(() => sayRo(text), 500);
+      const hasNext = n < ROAD_LEVEL_COUNT;
+      resultOverlay(screen, {
+        stars, text,
+        actions: [
+          hasNext
+            ? h('button', { class: 'btn primary big', dataset: { nextLevel: String(n + 1) }, onClick: () => { sfx.tap(); go(`#/aventura/drum/${n + 1}`); } }, `🛤️ ${T.nextLevel}`)
+            : h('button', { class: 'btn primary big', onClick: () => { sfx.tap(); go('#/abtibilduri'); } }, `📒 ${T.stickers}`),
+          h('button', { class: 'btn', onClick: () => { sfx.tap(); render(); } }, `🔁 ${T.playAgain}`),
+          h('button', { class: 'btn ghost', onClick: () => { sfx.tap(); go('#/aventura/drum'); } }, T.backToLevels),
+        ],
+      });
+    },
   });
 }
 
@@ -317,7 +374,7 @@ function renderParents() {
   if (sessionStorage.getItem(PARENT_KEY) !== '1') return renderGate();
 
   const voiceOk = hasVoice(langTag());
-  const nameInput = h('input', { class: 'text-input', value: state.profile?.name || '', maxlength: '14', placeholder: T.namePlaceholder });
+  const nameInput = h('input', { class: 'text-input', value: state.profile?.name || '', maxlength: '14', placeholder: T.childName });
   const savedTag = h('span', { class: 'saved-tag' });
   let avatar = state.profile?.avatar || AVATARS[0];
   const avatarBtns = AVATARS.map((a) => h('button', {
@@ -385,6 +442,7 @@ function renderParents() {
           state.progress = {};
           state.stickers = [];
           state.adventure = { steps: {}, art: {} };
+          state.roadLevels = {};
           save(state);
           render();
         } }, `🗑️ ${T.resetProgress}`)))));
@@ -436,7 +494,9 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
     if (hadController) { pendingReload = true; applyUpdateIfIdle(); }
     hadController = true;
   });
-  navigator.serviceWorker.register('sw.js').then((reg) => reg.update().catch(() => {})).catch(() => {});
+  const precacheAudio = () => navigator.serviceWorker.ready.then((r) => r.active && r.active.postMessage('precache-audio')).catch(() => {});
+  navigator.serviceWorker.register('sw.js').then((reg) => { reg.update().catch(() => {}); precacheAudio(); }).catch(() => {});
+  navigator.serviceWorker.addEventListener('controllerchange', precacheAudio);
   window.addEventListener('hashchange', applyUpdateIfIdle);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') applyUpdateIfIdle(); });
 }

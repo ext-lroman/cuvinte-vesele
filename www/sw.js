@@ -13,15 +13,20 @@ const ASSETS = [
 ];
 
 // Clipurile audio: toate, din manifest, cu încercări individuale (un clip lipsă nu blochează instalarea).
-async function cacheAudio(cache) {
+// Rulează separat de instalare (la mesajul 'precache-audio'), reia doar ce lipsește și revalidează ieftin (304).
+async function cacheAudio() {
   try {
-    const res = await fetch('./assets/audio/manifest.json', { cache: 'no-cache' });
+    const cache = await caches.open(VERSION);
+    const res = await fetch(new Request('./assets/audio/manifest.json', { cache: 'no-cache' }));
     if (!res.ok) return;
     const manifest = await res.json();
     const urls = [];
     for (const [lang, files] of Object.entries(manifest)) for (const f of Object.values(files)) urls.push(`./assets/audio/${lang}/${f}`);
-    for (let i = 0; i < urls.length; i += 12) {
-      await Promise.all(urls.slice(i, i + 12).map((u) => cache.add(u).catch(() => {})));
+    for (let i = 0; i < urls.length; i += 8) {
+      await Promise.all(urls.slice(i, i + 8).map(async (u) => {
+        if (await cache.match(u)) return;
+        await cache.add(new Request(u, { cache: 'no-cache' })).catch(() => {});
+      }));
     }
   } catch { /* fără internet: rămân clipurile de la cererile următoare */ }
 }
@@ -29,8 +34,7 @@ async function cacheAudio(cache) {
 self.addEventListener('install', (e) => {
   e.waitUntil((async () => {
     const cache = await caches.open(VERSION);
-    await cache.addAll(ASSETS);
-    await cacheAudio(cache);
+    await cache.addAll(ASSETS.map((u) => new Request(u, { cache: 'reload' })));   // mereu de la server, nu din cache-ul HTTP
     await self.skipWaiting();
   })());
 });
@@ -38,9 +42,20 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
     const keys = await caches.keys();
+    const fresh = await caches.open(VERSION);
+    for (const k of keys.filter((k) => k !== VERSION && k.startsWith('cuvinte-vesele-'))) {
+      const old = await caches.open(k);
+      for (const req of await old.keys()) {
+        if (req.url.includes('/assets/audio/') && !(await fresh.match(req))) { const r = await old.match(req); if (r) await fresh.put(req, r); }
+      }
+    }
     await Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k)));
     await self.clients.claim();
   })());
+});
+
+self.addEventListener('message', (e) => {
+  if (e.data === 'precache-audio') e.waitUntil(cacheAudio());
 });
 
 self.addEventListener('fetch', (e) => {
@@ -50,7 +65,7 @@ self.addEventListener('fetch', (e) => {
     const hit = await caches.match(req, { ignoreSearch: true });
     if (hit) return hit;
     const res = await fetch(req);
-    if (res.ok) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); }
+    if (res.ok) { const copy = res.clone(); e.waitUntil(caches.open(VERSION).then((c) => c.put(req, copy)).catch(() => {})); }
     return res;
   })());
 });

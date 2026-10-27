@@ -153,7 +153,7 @@ test('Aventura 1: pune cornul la unicorn (tragere)', async ({ page }) => {
 test('Aventura 2-3: colorat unicorni și dinozauri, desenele ajung în album', async ({ page }) => {
   await openWith(page, '#/aventura/unicorni');
   await page.locator('.swatch[data-color="roz"]').click();
-  for (const r of ['body', 'mane1', 'tail']) await page.locator(`.canvas [data-region="${r}"]`).first().dispatchEvent('click');
+  for (const r of ['body', 'mane', 'tail']) await page.locator(`.canvas [data-region="${r}"]`).first().dispatchEvent('click');
   await expect(page.locator('.canvas [data-region="body"]').first()).toHaveAttribute('fill', '#FF8FAB');
   await page.locator('[data-next-page]').click();
   await page.locator('.swatch[data-color="mov"]').click();
