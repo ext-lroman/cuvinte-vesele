@@ -1,0 +1,25 @@
+{
+  "name": "cuvinte-vesele",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Jocuri cu cuvinte pentru pitici — aplicație web (PWA) împachetată pentru iOS cu Capacitor",
+  "scripts": {
+    "start": "node server.js",
+    "test": "playwright test",
+    "audio:piper": "node scripts/generate-audio.js piper",
+    "audio:azure": "node scripts/generate-audio.js azure",
+    "audio:openai": "node scripts/generate-audio.js openai",
+    "ios:sync": "cap sync ios",
+    "ios:open": "cap open ios"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/ios": "^8.5.3",
+    "@playwright/test": "^1.55.1"
+  },
+  "type": "module"
+}

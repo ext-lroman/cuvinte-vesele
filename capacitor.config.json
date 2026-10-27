@@ -1,0 +1,11 @@
+{
+  "appId": "com.lucianroman.cuvintevesele",
+  "appName": "Cuvinte Vesele",
+  "webDir": "www",
+  "backgroundColor": "#FFF7E6",
+  "ios": {
+    "contentInset": "never",
+    "allowsLinkPreview": false,
+    "backgroundColor": "#FFF7E6"
+  }
+}
