@@ -495,3 +495,110 @@ test('Jocuri: Sortează culorile — tragere în coșuri, o greșeală = 2 stele
   await expect(page.locator('.colorsort-bin[data-count="3"]')).toHaveCount(3);
   await expectResult(page, 2);
 });
+
+// ---------------------------------------------------------------------------------------------
+// Muzică: YouTube e înlocuit cu un player fals, care ține minte ce i-a cerut aplicația
+const FAKE_YT = `
+  window.__yt = [];
+  window.YT = { PlayerState: { ENDED: 0, PLAYING: 1 }, Player: class {
+    constructor(el, opts) {
+      this.opts = opts; window.__yt.push(this);
+      this.f = document.createElement('iframe'); this.f.dataset.video = opts.videoId; el.replaceWith(this.f);
+      setTimeout(() => opts.events.onReady({ target: this }), 0);
+    }
+    loadVideoById(id) { this.f.dataset.video = id; this.playing = true; }
+    destroy() { this.f.remove(); this.destroyed = true; }
+  } };
+  window.onYouTubeIframeAPIReady();`;
+const stubYouTube = (page) => Promise.all([
+  page.route('https://www.youtube.com/iframe_api', (r) => r.fulfill({ contentType: 'text/javascript', body: FAKE_YT })),
+  page.route('https://i.ytimg.com/**', (r) => r.abort()),
+]);
+const nowVideo = (page) => page.locator('.music-frame iframe');
+
+test('Muzică: 7 melodii, alegere, trecere singură la următoarea, clipurile stricate se sar', async ({ page }) => {
+  await stubYouTube(page);
+  await openWith(page, '#/acasa');
+  await page.locator('[data-home="music"]').click();
+  await expect(page.locator('.song-card')).toHaveCount(7);
+  await expect(nowVideo(page)).toHaveAttribute('data-video', 'GXioir-fujY');           // prima melodie, pregătită, nu pornită
+  expect(await page.evaluate(() => [window.__yt[0].opts.host, window.__yt[0].playing, window.__yt[0].opts.playerVars.playsinline]))
+    .toEqual(['https://www.youtube-nocookie.com', undefined, 1]);
+
+  await page.locator('.song-card[data-song="ekr2nIex040"]').click();
+  await expect(nowVideo(page)).toHaveAttribute('data-video', 'ekr2nIex040');
+  await expect(page.locator('.song-card.current')).toHaveAttribute('data-song', 'ekr2nIex040');
+  await expect(page.locator('.music-title')).toHaveText('APT.');
+
+  await page.evaluate(() => window.__yt[0].opts.events.onStateChange({ data: 0 }));      // s-a terminat melodia
+  await expect(nowVideo(page)).toHaveAttribute('data-video', 'YnopHCL1Jk8');
+  await page.evaluate(() => window.__yt[0].opts.events.onError({ data: 150 }));          // încorporare oprită
+  await expect(page.locator('.song-card[data-song="YnopHCL1Jk8"]')).toHaveClass(/broken/);
+  await expect(nowVideo(page)).toHaveAttribute('data-video', '4r6-USLYsbA');
+  await page.locator('[data-music-prev]').click();                                       // ⏮ sare peste cea stricată
+  await expect(nowVideo(page)).toHaveAttribute('data-video', 'ekr2nIex040');
+  await page.locator('.song-card[data-song="dDaBzSmME0o"]').click();
+  await page.locator('[data-music-next]').click();                                       // după ultima vine prima
+  await expect(nowVideo(page)).toHaveAttribute('data-video', 'GXioir-fujY');
+
+  await page.locator('.topbar .icon-btn').click();
+  await expect(page.locator('[data-home="music"]')).toBeVisible();
+  expect(await page.evaluate(() => window.__yt[0].destroyed)).toBe(true);               // muzica se oprește la plecare
+});
+
+test('Muzică: fără internet apare mesajul, „Încearcă din nou” pornește playerul', async ({ page }) => {
+  let online = false;
+  await page.route('https://www.youtube.com/iframe_api', (r) => (online ? r.fulfill({ contentType: 'text/javascript', body: FAKE_YT }) : r.abort()));
+  await page.route('https://i.ytimg.com/**', (r) => r.abort());
+  await openWith(page, '#/muzica');
+  await expect(page.locator('.music-offline')).toContainText('Muzica merge doar cu internet.');
+  await page.locator('.song-card[data-song="pRpeEdMmmQ0"]').click();                    // aleasă cât era fără internet
+  online = true;
+  await page.getByRole('button', { name: /Încearcă din nou/ }).click();
+  await expect(nowVideo(page)).toHaveAttribute('data-video', 'pRpeEdMmmQ0');
+  expect(await page.evaluate(() => window.__yt[0].playing)).toBe(true);
+});
+
+test('Muzică în Zona părinților: link adăugat, link greșit, dublură, ștergere, lista de la început', async ({ page }) => {
+  page.on('dialog', (d) => d.accept());
+  await stubYouTube(page);
+  await page.route('https://www.youtube.com/oembed**', (r) => (r.request().url().includes('aaaaaaaaaaa')
+    ? r.fulfill({ status: 401, body: 'Unauthorized' })
+    : r.fulfill({ json: { title: 'Baby Shark Dance', author_name: 'Pinkfong' } })));
+  await page.addInitScript(() => sessionStorage.setItem('cuvinte-vesele:parinte', '1'));
+  await openWith(page, '#/parinti');
+
+  expect(await page.evaluate(async () => {
+    const { videoId } = await import('/src/music.js');
+    return ['https://youtu.be/XqZsoesa55w?si=x', 'youtube.com/shorts/XqZsoesa55w', 'https://music.youtube.com/watch?v=XqZsoesa55w&list=RD',
+      'https://m.youtube.com/watch?app=desktop&v=XqZsoesa55w', 'XqZsoesa55w', 'https://example.com/watch?v=XqZsoesa55w', 'salut'].map(videoId);
+  })).toEqual(['XqZsoesa55w', 'XqZsoesa55w', 'XqZsoesa55w', 'XqZsoesa55w', 'XqZsoesa55w', null, null]);
+
+  const card = page.locator('[data-music-parents]');
+  const status = card.locator('p[aria-live]');
+  const add = async (text) => { await card.locator('[data-music-link]').fill(text); await card.locator('[data-music-add]').click(); };
+  await expect(card.locator('[data-music-item]')).toHaveCount(7);
+  await expect(card.locator('[data-music-reset]')).toBeHidden();
+
+  await add('nu e un link');
+  await expect(status).toContainText('Nu recunosc linkul');
+  await add('https://youtu.be/aaaaaaaaaaa');
+  await expect(status).toContainText('nu poate fi pus în alte aplicații');
+  await add('https://youtu.be/XqZsoesa55w?si=abc');
+  await expect(card.locator('[data-music-item="XqZsoesa55w"]')).toContainText('Baby Shark Dance · Pinkfong');
+  await add('https://www.youtube.com/watch?v=XqZsoesa55w&t=3');
+  await expect(status).toContainText('deja în listă');
+  await card.locator('[data-music-item="GXioir-fujY"] .btn.danger').click();
+  await expect(card.locator('[data-music-item]')).toHaveCount(7);
+  expect((await saved(page)).songs.map((s) => s.id)).toEqual(['fcnDmrtj6Sk', 'pRpeEdMmmQ0', 'ekr2nIex040', 'YnopHCL1Jk8', '4r6-USLYsbA', 'dDaBzSmME0o', 'XqZsoesa55w']);
+
+  await page.goto('/#/muzica');
+  await expect(page.locator('.song-card')).toHaveCount(7);
+  await expect(page.locator('.song-card').last()).toHaveAttribute('data-song', 'XqZsoesa55w');
+  await expect(nowVideo(page)).toHaveAttribute('data-video', 'fcnDmrtj6Sk');
+
+  await page.goto('/#/parinti');
+  await card.locator('[data-music-reset]').click();
+  await expect(card.locator('[data-music-item]').first()).toHaveAttribute('data-music-item', 'GXioir-fujY');
+  expect((await saved(page)).songs).toBeUndefined();
+});

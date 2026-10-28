@@ -29,6 +29,7 @@ import * as svgPage from './coloring/svgPage.js';
 import * as rasterPage from './coloring/rasterPage.js';
 import { setColoredThumb } from './coloring/store.js';
 import { bookGrid, resolvePage, parentsCard, releaseURLs } from './coloring/book.js';
+import { SONGS, mountMusic, musicParentsCard } from './music.js';
 
 const MODULES = { learn, listen, memory, shadow, odd: oddOne, count, pattern, spell };
 const EXTRA_MODULES = { balloons, dressUp, feedDino, puzzle, trace, colorSort };
@@ -44,6 +45,7 @@ state.adventure.art = state.adventure.art || {};
 state.roadLevels = state.roadLevels || {};             // nivelele 2+ ale Drumului prietenilor (nivelul 1 = pasul aventurii)
 state.book = state.book || {};
 state.extras = state.extras || {};                     // stelele jocurilor de sine stătătoare (ecranul „Jocuri”)                         // cartea de colorat: atingerile (punct + culoare) pe fiecare desen raster
+const songs = () => state.songs || SONGS;              // lista de melodii a părintelui; lipsă = cea de început
 setSoundEnabled(state.settings.sound);
 const app = document.getElementById('app');
 let cleanup = null;
@@ -94,6 +96,7 @@ function render() {
     case 'abtibilduri': return renderStickers();
     case 'colorat': return a ? renderBookPage(a) : renderBook();
     case 'jocuri': return a ? renderExtra(a) : renderExtras();
+    case 'muzica': return renderMusic();
     case 'parinti': return renderParents();
     default: return renderHome();
   }
@@ -152,7 +155,9 @@ function renderHome() {
           h('span', { class: 'home-card-art' }, '🎨'), h('span', { class: 'home-card-title' }, T.book)),
         h('button', { class: 'home-card', style: { '--c': '#4CC9F0' }, dataset: { home: 'extras' }, onClick: () => { sfx.tap(); go('#/jocuri'); } },
           h('span', { class: 'home-card-art' }, '🎈'), h('span', { class: 'home-card-title' }, T.extras),
-          h('span', { class: 'home-card-stars' }, `⭐ ${extrasStars()}/${EXTRAS.length * 3}`))),
+          h('span', { class: 'home-card-stars' }, `⭐ ${extrasStars()}/${EXTRAS.length * 3}`)),
+        h('button', { class: 'home-card', style: { '--c': '#9B5DE5' }, dataset: { home: 'music' }, onClick: () => { sfx.tap(); go('#/muzica'); } },
+          h('span', { class: 'home-card-art' }, '🎵'), h('span', { class: 'home-card-title' }, T.music))),
       h('h2', { class: 'section-title' }, T.pickTopic),
       h('div', { class: 'topics' }, TOPICS.map((t) => {
         const done = topicDone(t);
@@ -461,6 +466,14 @@ async function renderBookPage(id) {
   }
 }
 
+// ---- muzică ---------------------------------------------------------------------
+function renderMusic() {
+  const screen = h('section', { class: 'screen music', style: { '--c': '#9B5DE5' } },
+    topbar({ back: '#/acasa', title: `🎵 ${T.music}` }));
+  app.append(screen);
+  cleanup = mountMusic(screen, { songs: songs(), sfx, openParents: () => go('#/parinti') });
+}
+
 // ---- album ----------------------------------------------------------------------
 function renderStickers() {
   const art = state.adventure.art;
@@ -556,6 +569,8 @@ function renderParents() {
               h('td', {}, `${topicStars(t)}/${topicMax(t)}`)))))),
 
       parentsCard({ sfx }),
+
+      musicParentsCard({ list: songs(), sfx, saveList: (list) => { if (list) state.songs = list; else delete state.songs; save(state); } }),
 
       h('div', { class: 'card' },
         h('h3', {}, T.install),

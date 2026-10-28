@@ -11,7 +11,7 @@ const ASSETS = [
   './src/extras/balloons.js', './src/extras/colorSort.js', './src/extras/dressUp.js', './src/extras/feedDino.js',
   './src/extras/puzzle.js', './src/extras/trace.js', './src/games/count.js', './src/games/learn.js',
   './src/games/listen.js', './src/games/memory.js', './src/games/oddOne.js', './src/games/pattern.js',
-  './src/games/shadow.js', './src/games/spell.js', './src/storage.js', './src/strings.js',
+  './src/games/shadow.js', './src/games/spell.js', './src/music.js', './src/storage.js', './src/strings.js',
   './src/ui.js',
   './assets/icon.svg', './assets/icon-192.png', './assets/icon-512.png', './assets/icon-180.png',
   './assets/fonts/fredoka.css', './assets/fonts/fredoka-latin.woff2', './assets/fonts/fredoka-latin-ext.woff2',
