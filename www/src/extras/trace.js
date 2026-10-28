@@ -18,6 +18,24 @@ const RADIUS = 22;     // cât de aproape de următorul punct trebuie să fie de
 const SKIP = 5;        // câte puncte poate sări un deget care merge repede
 const DONE_AT = 0.97;  // cât din linie trebuie acoperit ca cifra să fie gata
 
+// app.css nu are reguli pentru jocul ăsta: fără ele desenul iese 0×0 px, iar liniile sunt pete negre fără contur.
+// Stilul vine cu jocul (un <style> în pagina jocului) și dispare odată cu el.
+const STYLE = `
+.game.trace { gap: 12px; }
+.game.trace .trace-digit { font-size: clamp(32px, 7vmin, 56px); font-weight: 700; line-height: 1; color: #9B5DE5; }
+.game.trace .trace-box { background: #fff; border-radius: var(--r); box-shadow: var(--shadow); padding: 8px; transition: box-shadow .3s; }
+.game.trace .trace-box.done { box-shadow: 0 0 0 6px #6BCB77, var(--shadow); }
+.game.trace .trace-svg { --h: max(180px, min(100vh - 380px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px), 504px, 100.8vw)); display: block; height: var(--h); width: calc(var(--h) / 1.4); }
+.game.trace .trace-guide { fill: none; stroke: #DCD3EA; stroke-width: 10; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 2 14; }
+.game.trace .trace-fill { fill: none; stroke: #9B5DE5; stroke-width: 15; stroke-linecap: round; stroke-linejoin: round; }
+.game.trace .trace-start { fill: #6BCB77; stroke: #fff; stroke-width: 3; }
+.game.trace .trace-cursor { fill: #fff; stroke: #9B5DE5; stroke-width: 3; }
+.game.trace .trace-steps { display: flex; gap: 10px; }
+.game.trace .trace-step { width: 44px; height: 44px; border-radius: 50%; background: #fff; box-shadow: var(--shadow); display: grid; place-items: center; font-size: 22px; font-weight: 700; color: var(--muted); }
+.game.trace .trace-step.now { background: #9B5DE5; color: #fff; }
+.game.trace .trace-step.ok { background: #6BCB77; color: #fff; }
+`;
+
 // Element SVG (h() face doar elemente HTML).
 const s = (tag, attrs = {}) => {
   const e = document.createElementNS('http://www.w3.org/2000/svg', tag);
@@ -40,17 +58,20 @@ export function mount(root, ctx) {
   const box = h('div', { class: 'trace-box' });
   const steps = h('div', { class: 'trace-steps' }, DIGITS.map((n) =>
     h('span', { class: 'trace-step', dataset: { n: String(n) } }, String(n))));
-  root.replaceChildren(h('div', { class: 'game trace' }, prompt, big, box, steps));
+  root.replaceChildren(h('div', { class: 'game trace' }, h('style', {}, STYLE), prompt, big, box, steps));
 
   function draw() {
     const n = DIGITS[at];
     let idx = 0, down = false, done = false;
-    const svg = s('svg', { class: 'trace-svg', viewBox: '0 0 100 140', 'data-digit': n, 'data-progress': 0, role: 'img', 'aria-label': `${T.traceName}: ${n}` });
+    // touch-action: none — altfel tableta ia tragerea degetului drept derulare și întrerupe urmărirea (pointercancel).
+    const svg = s('svg', { class: 'trace-svg', viewBox: '0 0 100 140', 'data-digit': n, 'data-progress': 0, role: 'img', 'aria-label': `${T.traceName}: ${n}`, style: 'touch-action: none' });
     const guide = s('path', { class: 'trace-guide', d: PATHS[n] });
-    const fill = s('path', { class: 'trace-fill', d: PATHS[n] });
+    // O linie de progres pentru fiecare bucată („M”): liniuțele (stroke-dasharray) o iau de la capăt la fiecare bucată,
+    // așa că la „4” o singură linie ar colora bara verticală deodată cu prima bucată.
+    const fills = PATHS[n].split(/(?=M)/).map((d) => s('path', { class: 'trace-fill', d: d.trim() }));
     const start = s('circle', { class: 'trace-start', r: 9 });
     const cursor = s('circle', { class: 'trace-cursor', r: 6 });
-    svg.append(guide, fill, start, cursor);
+    svg.append(guide, ...fills, cursor, start);  // punctul verde de start rămâne deasupra cursorului
     big.textContent = String(n);
     big.dataset.digit = n;
     box.classList.remove('done');
@@ -68,11 +89,13 @@ export function mount(root, ctx) {
     }
     const last = points.length - 1;
     svg.dataset.points = JSON.stringify(points);
-    fill.setAttribute('stroke-dasharray', total);
+    let from = 0;
+    const parts = fills.map((el) => { const len = el.getTotalLength(); el.setAttribute('stroke-dasharray', len); const part = { el, from, len }; from += len; return part; });
     const moveTo = (c, [x, y]) => { c.setAttribute('cx', x); c.setAttribute('cy', y); };
     moveTo(start, points[0]);
     const show = () => {
-      fill.setAttribute('stroke-dashoffset', total - Math.min(total, idx * STEP));
+      const got = Math.min(total, idx * STEP);  // cât din linie e acoperit; fiecare bucată își arată partea ei
+      for (const p of parts) p.el.setAttribute('stroke-dashoffset', p.len - Math.max(0, Math.min(p.len, got - p.from)));
       moveTo(cursor, points[Math.min(idx + 1, last)]);
       svg.dataset.progress = idx;
     };

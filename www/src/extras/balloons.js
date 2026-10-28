@@ -8,19 +8,22 @@ const GOAL = 6;          // câte baloane corecte trebuie sparte
 const PER_TARGET = 2;    // după câte baloane sparte se schimbă cuvântul căutat
 const SPAWN_MS = 1300;   // la cât timp apare un balon nou
 const RISE_MS = 7000;    // cât durează urcarea unui balon până sus
-const GRACE_MS = 1500;   // imediat după schimbarea cuvântului, balonul cu vechiul cuvânt nu e greșeală
+const GRACE_MS = 2500;   // imediat după schimbarea cuvântului (până se aude cuvântul nou), balonul cu vechiul cuvânt nu e greșeală
 const PALETTE = ['#FFADAD', '#FFD6A5', '#FDFFB6', '#CAFFBF', '#9BF6FF', '#A0C4FF', '#BDB2FF', '#FFC6FF'];
 
 export function mount(root, ctx) {
   const { lang, wordOf, say, sayRo, sfx, preload, setProgress, onDone } = ctx;
-  const topic = TOPICS[Math.floor(Math.random() * TOPICS.length)];
+  // fără tema Culori: baloanele au culori la întâmplare, iar „roșu” ar trimite copilul la balonul roșu, nu la cel cu cercul roșu
+  const pool = TOPICS.filter((t) => t.id !== 'culori');
+  const topic = pool[Math.floor(Math.random() * pool.length)];
   const { words } = topic;
   let target = null, prevTarget = null, switchedAt = 0;
-  let pops = 0, mistakes = 0, spawned = 0, finished = false, spawner = null;
+  let pops = 0, mistakes = 0, spawned = 0, finished = false, spawner = null, sayTimer = null;
   const timers = new Set();
-  const later = (fn, ms) => { const t = setTimeout(() => { timers.delete(t); fn(); }, ms); timers.add(t); };
+  const later = (fn, ms) => { const t = setTimeout(() => { timers.delete(t); fn(); }, ms); timers.add(t); return t; };
   const other = (w) => shuffle(words.filter((x) => x !== w))[0];
   preload(words.map(wordOf), lang === 'en' ? 'en-US' : 'ro-RO');
+  preload([T.spoken.balloonsIntro, T.spoken.balloonsFind], 'ro-RO');
 
   // --- interfața: pastila cu cuvântul căutat, scorul și cerul pe care urcă baloanele ---
   const promptEmoji = h('span', { class: 'balloons-target' });
@@ -42,9 +45,16 @@ export function mount(root, ctx) {
     promptText.textContent = wordOf(target);
     promptText.dataset.word = wordOf(target);
     prompt.setAttribute('aria-label', `${T.balloonsPop} ${wordOf(target)}`);
-    sky.querySelectorAll('.balloons-balloon').forEach((b) => { b.dataset.correct = b.dataset.word === wordOf(target) ? '1' : '0'; });
+    sky.querySelectorAll('.balloons-balloon').forEach((b) => {
+      b.dataset.correct = b.dataset.word === wordOf(target) ? '1' : '0';
+      // un balon atins greșit mai devreme (dezactivat) care are acum imaginea căutată trebuie să se poată sparge
+      if (b.dataset.correct === '1' && !b.classList.contains('popped')) { b.disabled = false; b.classList.remove('wrong'); }
+    });
     later(() => sayRo(first ? T.spoken.balloonsIntro : T.spoken.balloonsFind), first ? 300 : 150);
-    later(() => say(target), first ? 3000 : 1400);   // speak() oprește rostirea anterioară, deci lăsăm fraza să se termine
+    // speak() oprește rostirea anterioară, deci lăsăm fraza să se termine (clipurile durează ~2,8 s și ~1,6 s);
+    // la două schimbări la rând rămâne programată o singură rostire, ca să nu taie fraza nouă și să nu spună cuvântul de două ori
+    clearTimeout(sayTimer); timers.delete(sayTimer);
+    sayTimer = later(() => { if (!finished) say(target); }, first ? 3300 : 2000);
   }
 
   // --- baloanele: apar jos, la o poziție la întâmplare, și urcă (animație CSS); dispar când ajung sus ---
@@ -88,7 +98,7 @@ export function mount(root, ctx) {
       mistakes++;
       sfx.wrong();
       btn.classList.add('wrong');
-      later(() => say(target), 500);
+      later(() => { if (!finished) say(target); }, 500);   // după final nu mai repetăm cuvântul peste sunetul de victorie
     }
   }
 

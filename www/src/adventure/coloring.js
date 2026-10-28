@@ -7,7 +7,7 @@ import { unicornSVG, dinoSVG, paint } from '../art.js';
 const hexOf = (id) => COLORS.find((c) => c.id === id).hex;
 
 export function mount(root, ctx) {
-  const { step, art, saveArt, sayRo, speak, lang, sfx, setProgress, onDone } = ctx;
+  const { step, art, saveArt, sayRo, speak, lang, sfx, setProgress, onDone, openBook } = ctx;
   const timers = new Set();
   const later = (fn, ms) => { const t = setTimeout(() => { timers.delete(t); fn(); }, ms); timers.add(t); };
   const tag = lang === 'en' ? 'en-US' : 'ro-RO';
@@ -68,7 +68,8 @@ export function mount(root, ctx) {
     h('div', { class: 'nav-row' },
       h('button', { class: 'btn', onClick: () => { sfx.tap(); art[pages[page].key] = {}; saveArt(); draw(); } }, `🧽 ${T.clear}`),
       pages.length > 1 && h('button', { class: 'btn', dataset: { nextPage: '' }, onClick: () => { sfx.tap(); page = (page + 1) % pages.length; draw(); } }, step === 'unicorni' ? T.nextUnicorn : T.nextDino),
-      doneBtn)));
+      doneBtn),
+    step === 'unicorni' && openBook && h('button', { class: 'btn ghost', dataset: { openBook: '' }, onClick: () => { sfx.tap(); openBook(); } }, `📚 ${T.bookMore}`)));
   draw();
   later(() => sayRo(T.spoken.colorIntro), 300);
   return () => timers.forEach(clearTimeout);

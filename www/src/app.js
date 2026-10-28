@@ -1,5 +1,5 @@
 // Cuvinte Vesele — aplicația: rute, ecrane, progres, aventura.
-import { TOPICS, GAMES, AVATARS, ADVENTURE } from './content.js';
+import { TOPICS, GAMES, AVATARS, ADVENTURE, EXTRAS, STICKER_GAMES } from './content.js';
 import { T } from './strings.js';
 import { load, save } from './storage.js';
 import { speak, sfx, setSoundEnabled, hasVoice, unlockAudio, loadClips, preload, stopSpeech } from './audio.js';
@@ -11,14 +11,27 @@ import * as memory from './games/memory.js';
 import * as shadow from './games/shadow.js';
 import * as count from './games/count.js';
 import * as spell from './games/spell.js';
+import * as oddOne from './games/oddOne.js';
+import * as pattern from './games/pattern.js';
+import * as balloons from './extras/balloons.js';
+import * as dressUp from './extras/dressUp.js';
+import * as feedDino from './extras/feedDino.js';
+import * as puzzle from './extras/puzzle.js';
+import * as trace from './extras/trace.js';
+import * as colorSort from './extras/colorSort.js';
 import * as horn from './adventure/horn.js';
 import * as coloring from './adventure/coloring.js';
 import * as dinoNames from './adventure/dinoNames.js';
 import * as rainbow from './adventure/rainbow.js';
 import * as road from './adventure/road.js';
 import { LEVELS as ROAD_LEVELS, LEVEL_COUNT as ROAD_LEVEL_COUNT } from './adventure/road.js';
+import * as svgPage from './coloring/svgPage.js';
+import * as rasterPage from './coloring/rasterPage.js';
+import { setColoredThumb } from './coloring/store.js';
+import { bookGrid, resolvePage, parentsCard, releaseURLs } from './coloring/book.js';
 
-const MODULES = { learn, listen, memory, shadow, count, spell };
+const MODULES = { learn, listen, memory, shadow, odd: oddOne, count, pattern, spell };
+const EXTRA_MODULES = { balloons, dressUp, feedDino, puzzle, trace, colorSort };
 const ADVENTURE_MODULES = { corn: horn, unicorni: coloring, dinozauri: coloring, nume: dinoNames, curcubeu: rainbow, drum: road };
 const PARENT_KEY = 'cuvinte-vesele:parinte';
 const ADVENTURE_STICKER = 'aventura';
@@ -29,6 +42,8 @@ state.adventure = state.adventure || { steps: {}, art: {} };
 state.adventure.steps = state.adventure.steps || {};
 state.adventure.art = state.adventure.art || {};
 state.roadLevels = state.roadLevels || {};             // nivelele 2+ ale Drumului prietenilor (nivelul 1 = pasul aventurii)
+state.book = state.book || {};
+state.extras = state.extras || {};                     // stelele jocurilor de sine stătătoare (ecranul „Jocuri”)                         // cartea de colorat: atingerile (punct + culoare) pe fiecare desen raster
 setSoundEnabled(state.settings.sound);
 const app = document.getElementById('app');
 let cleanup = null;
@@ -48,13 +63,14 @@ const gamesFor = (t) => GAMES.filter((g) => !(g.skipIf && g.skipIf(t)) && !(g.ne
 const gameStars = (topicId, gameId) => (state.progress[topicId] || {})[gameId] || 0;
 const topicStars = (t) => gamesFor(t).reduce((s, g) => s + gameStars(t.id, g.id), 0);
 const topicMax = (t) => gamesFor(t).length * 3;
-const topicDone = (t) => state.stickers.includes(t.id) || gamesFor(t).every((g) => gameStars(t.id, g.id) > 0);
+const topicDone = (t) => state.stickers.includes(t.id) || gamesFor(t).filter((g) => gameStars(t.id, g.id) > 0).length >= Math.min(STICKER_GAMES, gamesFor(t).length);
 const adventureStars = () => ADVENTURE.reduce((s, st) => s + (state.adventure.steps[st.id] || 0), 0);
 const roadStars = (n) => (n === 1 ? state.adventure.steps.drum || 0 : state.roadLevels[n] || 0);
 const roadUnlocked = (n) => n === 1 || roadStars(n - 1) > 0;
 const roadTotal = () => { let s = 0; for (let n = 2; n <= ROAD_LEVEL_COUNT; n++) s += roadStars(n); return s; };
 const adventureDone = () => ADVENTURE.every((st) => (state.adventure.steps[st.id] || 0) > 0);
-const totalStars = () => TOPICS.reduce((s, t) => s + topicStars(t), 0) + adventureStars() + roadTotal();
+const extrasStars = () => EXTRAS.reduce((s, x) => s + (state.extras[x.id] || 0), 0);
+const totalStars = () => TOPICS.reduce((s, t) => s + topicStars(t), 0) + adventureStars() + roadTotal() + extrasStars();
 
 // ---- rute -----------------------------------------------------------------
 function go(hash) {
@@ -62,8 +78,11 @@ function go(hash) {
 }
 const route = () => location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
 
+let renderToken = 0;
 function render() {
+  renderToken++;
   if (cleanup) { try { cleanup(); } catch { /* ignorat */ } cleanup = null; }
+  releaseURLs();
   stopSpeech();
   app.replaceChildren();
   const [screen, a, b] = route();
@@ -73,6 +92,8 @@ function render() {
     case 'joc': return renderPlay(a, b);
     case 'aventura': return a === 'drum' ? (b ? renderRoadLevel(Number(b)) : renderRoadLevels()) : a ? renderAdventureStep(a) : renderAdventure();
     case 'abtibilduri': return renderStickers();
+    case 'colorat': return a ? renderBookPage(a) : renderBook();
+    case 'jocuri': return a ? renderExtra(a) : renderExtras();
     case 'parinti': return renderParents();
     default: return renderHome();
   }
@@ -126,6 +147,12 @@ function renderHome() {
           h('span', { class: 'adv-sub' }, advDone ? `🏅 ${T.magicSticker}` : advNext ? `${advNext.emoji} ${advNext.ro}` : T.adventureHint),
           h('span', { class: 'adv-stars' }, `⭐ ${adventureStars()}/${ADVENTURE.length * 3}`)),
         h('span', { class: 'adv-art' }, '🦕')),
+      h('div', { class: 'home-cards' },
+        h('button', { class: 'home-card', style: { '--c': '#FF8FAB' }, dataset: { home: 'book' }, onClick: () => { sfx.tap(); go('#/colorat'); } },
+          h('span', { class: 'home-card-art' }, '🎨'), h('span', { class: 'home-card-title' }, T.book)),
+        h('button', { class: 'home-card', style: { '--c': '#4CC9F0' }, dataset: { home: 'extras' }, onClick: () => { sfx.tap(); go('#/jocuri'); } },
+          h('span', { class: 'home-card-art' }, '🎈'), h('span', { class: 'home-card-title' }, T.extras),
+          h('span', { class: 'home-card-stars' }, `⭐ ${extrasStars()}/${EXTRAS.length * 3}`))),
       h('h2', { class: 'section-title' }, T.pickTopic),
       h('div', { class: 'topics' }, TOPICS.map((t) => {
         const done = topicDone(t);
@@ -258,6 +285,7 @@ function renderAdventureStep(id) {
       step: st.id,
       art: state.adventure.art,
       saveArt: () => save(state),
+      openBook: () => go('#/colorat'),
     },
     onFinish: (stars, screen) => finishAdventureStep(st, stars, screen),
   });
@@ -336,6 +364,101 @@ function renderRoadLevel(n) {
       });
     },
   });
+}
+
+// ---- jocuri de sine stătătoare -------------------------------------------------------
+function renderExtras() {
+  app.append(h('section', { class: 'screen', style: { '--c': '#4CC9F0' } },
+    topbar({ back: '#/acasa', title: `🎈 ${T.extras}`, right: h('div', { class: 'chip' }, '⭐ ', String(extrasStars())) }),
+    h('div', { class: 'scroll' },
+      h('div', { class: 'games' }, EXTRAS.map((x) =>
+        h('button', { class: 'game-card', style: { '--c': x.color }, dataset: { extra: x.id }, onClick: () => { sfx.tap(); go(`#/jocuri/${x.id}`); } },
+          h('span', { class: 'game-icon' }, x.emoji),
+          h('span', { class: 'game-text' },
+            h('span', { class: 'game-name' }, x.ro),
+            h('span', { class: 'game-hint' }, x.hint),
+            starsEl(state.extras[x.id] || 0))))))));
+}
+
+function renderExtra(id) {
+  const x = EXTRAS.find((e) => e.id === id);
+  const mod = x && EXTRA_MODULES[x.module];
+  if (!x || !mod) return go('#/jocuri');
+  playScreen({
+    back: '#/jocuri', title: `${x.emoji} ${x.ro}`, color: x.color, mod,
+    ctxExtra: { art: state.adventure.art, best: state.extras[x.id] || 0 },
+    onFinish: (stars, screen) => {
+      state.extras[x.id] = Math.max(state.extras[x.id] || 0, stars);
+      save(state);
+      const text = praise();
+      sfx.win();
+      confetti();
+      setTimeout(() => sayRo(text), 500);
+      const next = EXTRAS[EXTRAS.indexOf(x) + 1];
+      resultOverlay(screen, {
+        stars, text,
+        actions: [
+          next
+            ? h('button', { class: 'btn primary big', dataset: { nextExtra: next.id }, onClick: () => { sfx.tap(); go(`#/jocuri/${next.id}`); } }, `${next.emoji} ${next.ro}`)
+            : h('button', { class: 'btn primary big', onClick: () => { sfx.tap(); go('#/jocuri'); } }, `🎈 ${T.extras}`),
+          h('button', { class: 'btn', onClick: () => { sfx.tap(); render(); } }, `🔁 ${T.playAgain}`),
+          h('button', { class: 'btn ghost', onClick: () => { sfx.tap(); go('#/jocuri'); } }, T.backToExtras),
+        ],
+      });
+    },
+  });
+}
+
+// ---- cartea de colorat -------------------------------------------------------------
+function renderBook() {
+  const token = renderToken;
+  app.append(h('section', { class: 'screen book', style: { '--c': '#FF8FAB' } },
+    topbar({ back: '#/acasa', title: `🎨 ${T.book}` }),
+    h('div', { class: 'scroll' },
+      h('p', { class: 'lead center' }, T.bookHint),
+      bookGrid({
+        art: state.adventure.art, ops: state.book, isAlive: () => token === renderToken,
+        open: (id) => { sfx.tap(); go(`#/colorat/${id}`); },
+        addPages: () => { sfx.tap(); go('#/parinti'); },
+      }))));
+  setTimeout(() => { if (token === renderToken) sayRo(T.spoken.bookIntro); }, 300);
+}
+
+async function renderBookPage(id) {
+  const token = renderToken;
+  const found = await resolvePage(id);
+  if (token !== renderToken) return;
+  if (!found) return go('#/colorat');
+  const { kind, page } = found;
+  const common = {
+    back: '#/colorat', title: `🎨 ${page.title}`, color: '#FF8FAB',
+    onFinish: (stars, screen) => {
+      sfx.win();
+      confetti();
+      const text = praise();
+      setTimeout(() => sayRo(text), 500);
+      resultOverlay(screen, {
+        stars, text,
+        actions: [
+          h('button', { class: 'btn primary big', onClick: () => { sfx.tap(); go('#/colorat'); } }, `📚 ${T.bookOther}`),
+          h('button', { class: 'btn', onClick: () => { sfx.tap(); render(); } }, `🎨 ${T.bookAgain}`),
+        ],
+      });
+    },
+  };
+  if (kind === 'svg') {
+    state.adventure.art[page.id] = state.adventure.art[page.id] || {};
+    playScreen({ ...common, mod: svgPage, ctxExtra: { page, fills: state.adventure.art[page.id], saveArt: () => save(state) } });
+  } else {
+    playScreen({
+      ...common, mod: rasterPage,
+      ctxExtra: {
+        page, ops: state.book[page.id] || [],
+        saveOps: (ops) => { if (ops.length) state.book[page.id] = ops; else delete state.book[page.id]; save(state); },
+        saveThumb: async (blob) => { try { await setColoredThumb(page.id, await blob.arrayBuffer()); } catch { /* fără IndexedDB */ } },
+      },
+    });
+  }
 }
 
 // ---- album ----------------------------------------------------------------------
@@ -432,6 +555,8 @@ function renderParents() {
               GAMES.map((g) => { const s = gameStars(t.id, g.id); const off = !gamesFor(t).includes(g); return h('td', { class: s ? 'has' : '' }, off ? '' : s ? `${s}★` : '·'); }),
               h('td', {}, `${topicStars(t)}/${topicMax(t)}`)))))),
 
+      parentsCard({ sfx }),
+
       h('div', { class: 'card' },
         h('h3', {}, T.install),
         h('p', { class: 'note' }, T.installTip)),
@@ -443,6 +568,8 @@ function renderParents() {
           state.stickers = [];
           state.adventure = { steps: {}, art: {} };
           state.roadLevels = {};
+          state.book = {};
+          state.extras = {};
           save(state);
           render();
         } }, `🗑️ ${T.resetProgress}`)))));

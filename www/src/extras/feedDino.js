@@ -19,6 +19,8 @@ export function mount(root, ctx) {
   const timers = new Set();
   const later = (fn, ms) => { const t = setTimeout(() => { timers.delete(t); fn(); }, ms); timers.add(t); };
   const want = (f) => T.spoken.wantFood[f.id];
+  // Cererea întârziată se rostește doar dacă runda e tot aceeași: altfel DinoZ ar cere mâncarea abia mâncată și ar tăia „Mmm, delicios!”.
+  const askLater = (ms) => { const r = round; later(() => { if (round === r) sayRo(want(target)); }, ms); };
 
   // Scena: dinozaurul (cu culorile din album, dacă a fost colorat) și gura lui ca zonă de drop.
   const { x, y } = DINO_ANCHORS.trex.mouth;
@@ -46,7 +48,7 @@ export function mount(root, ctx) {
       attachDrag(el, f);
       return el;
     }));
-    later(() => sayRo(want(target)), round === 0 ? 2600 : 250);   // prima rundă așteaptă să se termine introducerea
+    askLater(round === 0 ? 2600 : 250);                   // prima rundă așteaptă să se termine introducerea
   }
 
   const within = (r, cx, cy, pad) => cx >= r.left - pad && cx <= r.right + pad && cy >= r.top - pad && cy <= r.bottom + pad;
@@ -106,7 +108,7 @@ export function mount(root, ctx) {
     stage.classList.add('feed-no');
     later(() => stage.classList.remove('feed-no'), 500);
     later(() => el.classList.add('wrong'), 400);
-    later(() => sayRo(want(target)), 500);
+    askLater(500);
   }
 
   const score = () => (mistakes === 0 ? 3 : mistakes <= 2 ? 2 : 1);

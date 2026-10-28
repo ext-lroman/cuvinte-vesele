@@ -14,14 +14,30 @@ Aplicație web (PWA) fără dependențe la rulare, împachetată pentru iOS cu C
   6. *Drumul prietenilor* — DinoZ și UniCORN pe o hartă 5×5 cu obstacole; pui piese drepte și curbe,
      apoi atingi un erou și călătorește pe drum; la întâlnire, animație pe tot ecranul cu îmbrățișare.
   Desenele colorate ajung în album, iar eroii din jocul cu drumul poartă culorile alese de copil.
-- **11 teme × 8 cuvinte** (prima: *Unicorni și dinozauri*), fiecare cu **5 jocuri** potrivite pentru 4 ani și jumătate:
-  Învață (cartonașe cu voce), Ascultă și atinge, Memorie (imagine–imagine, 4 perechi, apoi 6), A cui e umbra?, Câte sunt?
-  Al șaselea joc, *Scrie cuvântul* (litere), se pornește din Zona părinților când copilul e pregătit.
+- **Drumul prietenilor** are 6 nivele, tot mai grele: hartă de la 5×5 la 7×7, steluțe prin care trebuie să treacă
+  drumul, un râu care se trece doar pe pod, piese numărate și ajutoare limitate.
+- **11 teme × 8 cuvinte** (prima: *Unicorni și dinozauri*), fiecare cu **7 jocuri** potrivite pentru 4 ani și jumătate:
+  Învață, Ascultă și atinge, Memorie, A cui e umbra?, Care e diferit?, Câte sunt?, Ce urmează?.
+  *Scrie cuvântul* (litere) se pornește din Zona părinților. Abțibildul unei teme se câștigă după 5 jocuri.
+- **Jocuri**: Sparge baloanele, Îmbracă unicornul (tragere), Hrănește dinozaurul (tragere), Puzzle, Trasează cifrele,
+  Sortează culorile.
+- **Carte de colorat**: desenele noastre (unicorni, dinozauri), 3 desene de pe OpenClipart (domeniu public) și desenele
+  importate de părinte pe dispozitiv. Pentru desenele raster, `www/src/coloring/lineart.js` găsește zonele dintre linii,
+  unește zonele foarte mici cu vecinele (detaliu „mediu”: cel mult ~60 de zone mari pe pagină) și colorează prin
+  înmulțire, ca liniile și umbrele să rămână. Atingerile se salvează (anulare, păstrare la redeschidere).
 - **Stele și abțibilduri**, confetti, laude rostite.
 - **Zona părinților** (poartă cu o adunare): nume/avatar, limba cuvintelor (română sau engleză cu traducere),
   jocuri cu litere, sunet, progres, resetare.
 - **Voce**: clipuri audio pre-generate cu o voce neurală (`www/assets/audio/`), Web Speech API doar ca rezervă.
-- Totul rulează local: fără cont, fără internet, fără reclame, fără urmărire. Progresul stă în `localStorage`.
+- Totul rulează local: fără cont, fără internet, fără reclame, fără urmărire. Progresul stă în `localStorage`,
+  desenele importate în IndexedDB, doar pe dispozitiv.
+
+### Desene importate (Suncatcher Studio)
+
+Desenele cu unicorni de la <https://suncatcherstudio.com/printable-coloring-pages/unicorn/> sunt gratuite pentru uz
+personal, dar termenii lor interzic urcarea lor pe un site sau distribuirea fișierelor. De aceea **nu sunt în acest
+repo** și nici pe site: părintele le descarcă și le adaugă pe iPad din *Zona părinților → Carte de colorat → Adaugă
+desene*; aplicația le păstrează doar local.
 
 ## Rulare
 
@@ -41,10 +57,14 @@ www/                       aplicația web (ce se livrează)
   src/strings.js           textele interfeței + frazele rostite (T.spoken)
   src/art.js               desenele SVG (unicorn, 5 dinozauri, curcubeu, cornul) cu zone de colorat (data-region)
   src/games/               learn, listen, memory, shadow, count, spell — fiecare exportă mount(root, ctx)
-  src/adventure/           horn, coloring, dinoNames, rainbow, road
+  src/adventure/           horn, coloring, dinoNames, rainbow, road (6 nivele)
+  src/extras/              jocurile de sine stătătoare (baloane, îmbracă, hrănește, puzzle, trasează, sortează)
+  src/coloring/            cartea de colorat: lineart.js (motorul raster), store.js (IndexedDB), book.js, *Page.js
+  src/art/                 desenul de unicorn (OpenClipart „toy unicorn”, CC0) împărțit pe zone
   src/audio.js             clipuri audio + voce de rezervă + efecte sonore sintetizate
   styles/app.css
   assets/audio/            clipurile (ro/, en/) și manifest.json — generate de scripts/generate-audio.js
+  assets/coloring/         desene de colorat incluse (OpenClipart, CC0)
   assets/fonts/            Fredoka (local)
   sw.js                    service worker (offline, doar pe https)
 ios/                       proiectul Xcode generat de Capacitor (SPM, fără CocoaPods)

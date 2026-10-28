@@ -13,6 +13,16 @@ const SHAPES = {
 };
 // Perechi pe care un copil mic le confundă ușor: nu apar împreună în același joc.
 const SIMILAR = { albastru: 'bleu', bleu: 'albastru', rosu: 'roz', roz: 'rosu' };
+// Aspectul jocului (app.css nu are reguli .colorsort-*): coșurile sunt discuri în culoarea lor (--bin), pe un rând sub tavă.
+const CSS = `
+.colorsort-bins { display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(24px, 5vw, 44px); width: 100%; padding-top: 8px; }
+.colorsort-bin { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.colorsort-basket { position: relative; width: clamp(80px, 21vw, 124px); aspect-ratio: 1; border-radius: 50%; background: var(--bin); border: 5px solid #fff; box-shadow: var(--shadow); display: grid; place-items: center; font-size: clamp(38px, 10vw, 58px); line-height: 1; transition: transform .15s, box-shadow .15s; }
+.colorsort-count { position: absolute; top: -6px; right: -6px; min-width: 30px; height: 30px; padding: 0 6px; border-radius: 999px; background: #fff; color: var(--ink); font-size: 17px; font-weight: 700; display: grid; place-items: center; box-shadow: var(--shadow); }
+.colorsort-name { font-size: clamp(15px, 4vw, 19px); font-weight: 700; text-align: center; }
+.colorsort-bin.over .colorsort-basket { transform: scale(1.12); box-shadow: 0 0 0 5px var(--ink), var(--shadow); }
+.colorsort-bin.correct .colorsort-basket { animation: pop .35s; }
+.colorsort-bin.wrong .colorsort-basket { animation: shake .4s; }`;
 
 // Trei culori la întâmplare (fără alb și fără două culori „surori”).
 function pickColors() {
@@ -71,7 +81,7 @@ export function mount(root, ctx) {
     h('span', { class: 'prompt-text small' }, T.spoken.sortIntro));
 
   root.replaceChildren(h('div', { class: 'game colorsort' },
-    prompt, tray, h('div', { class: 'colorsort-bins' }, bins.map((b) => b.el))));
+    prompt, tray, h('div', { class: 'colorsort-bins' }, bins.map((b) => b.el)), h('style', {}, CSS)));
   setProgress(0);
   preload([T.spoken.sortIntro, T.spoken.sortWrong, T.spoken.sortDone], 'ro-RO');
   preload(colors.map((c) => c[lang]), tag);

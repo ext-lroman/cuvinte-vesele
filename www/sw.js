@@ -4,11 +4,18 @@
 const VERSION = 'cuvinte-vesele-__BUILD__';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest', './styles/app.css',
-  './src/app.js', './src/content.js', './src/strings.js', './src/storage.js', './src/audio.js', './src/ui.js',
-  './src/art.js', './src/games/learn.js', './src/games/listen.js', './src/games/memory.js', './src/games/shadow.js', './src/games/count.js', './src/games/spell.js',
-  './src/adventure/horn.js', './src/adventure/coloring.js', './src/adventure/dinoNames.js', './src/adventure/rainbow.js', './src/adventure/road.js',
+  './src/adventure/coloring.js', './src/adventure/dinoNames.js', './src/adventure/horn.js', './src/adventure/rainbow.js',
+  './src/adventure/road.js', './src/app.js', './src/art.js', './src/art/unicornToy.js',
+  './src/audio.js', './src/coloring/book.js', './src/coloring/lineart.js', './src/coloring/rasterPage.js',
+  './src/coloring/store.js', './src/coloring/svgPage.js', './src/coloring/widgets.js', './src/content.js',
+  './src/extras/balloons.js', './src/extras/colorSort.js', './src/extras/dressUp.js', './src/extras/feedDino.js',
+  './src/extras/puzzle.js', './src/extras/trace.js', './src/games/count.js', './src/games/learn.js',
+  './src/games/listen.js', './src/games/memory.js', './src/games/oddOne.js', './src/games/pattern.js',
+  './src/games/shadow.js', './src/games/spell.js', './src/storage.js', './src/strings.js',
+  './src/ui.js',
   './assets/icon.svg', './assets/icon-192.png', './assets/icon-512.png', './assets/icon-180.png',
   './assets/fonts/fredoka.css', './assets/fonts/fredoka-latin.woff2', './assets/fonts/fredoka-latin-ext.woff2',
+  './assets/coloring/unicorn-aripi.png', './assets/coloring/unicorn-regal.png', './assets/coloring/unicorn-vesel.png',
   './assets/audio/manifest.json',
 ];
 

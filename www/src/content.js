@@ -154,8 +154,23 @@ export const GAMES = [
   { id: 'listen', ro: 'Ascultă și atinge', emoji: '👂', hint: 'Auzi un cuvânt, atinge imaginea' },
   { id: 'memory', ro: 'Memorie', emoji: '🃏', hint: 'Găsește perechile de imagini' },
   { id: 'shadow', ro: 'A cui e umbra?', emoji: '🌑', hint: 'Ghicește imaginea după umbră', skipIf: (t) => !!t.noShadow },
+  { id: 'odd', ro: 'Care e diferit?', emoji: '🔍', hint: 'Găsește imaginea care nu se potrivește' },
   { id: 'count', ro: 'Câte sunt?', emoji: '🔢', hint: 'Numără și alege cifra' },
+  { id: 'pattern', ro: 'Ce urmează?', emoji: '🧩', hint: 'Continuă șirul de imagini' },
   { id: 'spell', ro: 'Scrie cuvântul', emoji: '🔤', hint: 'Alcătuiește cuvântul din litere (5+ ani)', needs: 'letters' },
+];
+
+// Câte jocuri dintr-o temă trebuie terminate pentru abțibildul ei.
+export const STICKER_GAMES = 5;
+
+// Jocuri de sine stătătoare (ecranul „Jocuri”), în ordinea din meniu.
+export const EXTRAS = [
+  { id: 'baloane', module: 'balloons', ro: 'Sparge baloanele', emoji: '🎈', color: '#4CC9F0', hint: 'Atinge balonul cu ce auzi' },
+  { id: 'imbraca', module: 'dressUp', ro: 'Îmbracă unicornul', emoji: '🎀', color: '#FF8FAB', hint: 'Pune-i accesorii frumoase' },
+  { id: 'hraneste', module: 'feedDino', ro: 'Hrănește dinozaurul', emoji: '🍎', color: '#6BCB77', hint: 'Dă-i mâncarea pe care o cere' },
+  { id: 'puzzle', module: 'puzzle', ro: 'Puzzle', emoji: '🧩', color: '#9B5DE5', hint: 'Pune bucățile la locul lor' },
+  { id: 'traseaza', module: 'trace', ro: 'Trasează cifrele', emoji: '✏️', color: '#219EBC', hint: 'Urmărește cifra cu degetul' },
+  { id: 'sorteaza', module: 'colorSort', ro: 'Sortează culorile', emoji: '🧺', color: '#FB8500', hint: 'Fiecare formă în coșul ei' },
 ];
 
 export const AVATARS = ['🦄', '🦕', '🦖', '🦊', '🐼', '🐰', '🐯', '🐸'];
@@ -177,6 +192,11 @@ export const COLORS = [
   { id: 'roz', ro: 'roz', en: 'pink', hex: '#FF8FAB' },
   { id: 'bleu', ro: 'bleu', en: 'light blue', hex: '#8ECAE6' },
   { id: 'maro', ro: 'maro', en: 'brown', hex: '#B5651D' },
+  { id: 'turcoaz', ro: 'turcoaz', en: 'turquoise', hex: '#2EC4B6' },
+  { id: 'lila', ro: 'lila', en: 'lilac', hex: '#C8B6FF' },
+  { id: 'auriu', ro: 'auriu', en: 'gold', hex: '#E9C46A' },
+  { id: 'gri', ro: 'gri', en: 'gray', hex: '#ADB5BD' },
+  { id: 'negru', ro: 'negru', en: 'black', hex: '#343A40' },
   { id: 'alb', ro: 'alb', en: 'white', hex: '#FFFFFF' },
 ];
 export const RAINBOW = ['rosu', 'portocaliu', 'galben', 'verde', 'albastru', 'mov'];

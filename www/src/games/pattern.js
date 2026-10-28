@@ -30,8 +30,9 @@ export function mount(root, ctx) {
     setProgress(round / ROUNDS);
     locked = false;
 
-    // `slot` = căsuța punctată din foaia de stil (`.slot.filled` are animația „pop” când se umple).
-    const slot = h('button', { class: 'slot pattern-slot', 'aria-label': T.spoken.pattern, dataset: { answer: wordOf(answer) },
+    // Căsuța cu „?” are doar clasa .pattern-slot (din CSS-ul declarat; `.filled` = animația „pop”). Fără `.slot` din „Scrie cuvântul”:
+    // înălțimea ei fixă (60px, 52px pe telefon) o turtea la 96×60 lângă plăcuțele de 96×96, iar imaginea ieșea din chenar.
+    const slot = h('button', { class: 'pattern-slot', 'aria-label': T.spoken.pattern, dataset: { answer: wordOf(answer) },
       onClick: () => { sfx.tap(); sayRo(T.spoken.pattern); } }, '?');
     const row = h('div', { class: 'pattern-row', 'aria-label': T.patternRow, dataset: { round: String(round + 1), kind: tpl } },
       shown.map((w) => h('button', { class: 'pattern-item', 'aria-label': wordOf(w), dataset: { word: wordOf(w) },

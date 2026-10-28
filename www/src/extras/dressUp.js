@@ -23,9 +23,10 @@ export function mount(root, ctx) {
   // Scena: unicornul colorat de ea (dacă există) + zonele de prindere, ancorate ca fracții din desen.
   const zoneEls = ZONES.map((z) => h('div', {
     class: 'dressup-zone', dataset: { zone: z }, 'aria-label': T.dressZones[z],
-    style: { left: pct(UNICORN_ANCHORS[z].x), top: pct(UNICORN_ANCHORS[z].y) },
+    style: { position: 'absolute', left: pct(UNICORN_ANCHORS[z].x), top: pct(UNICORN_ANCHORS[z].y), transform: 'translate(-50%, -50%)' },
   }));
-  const stage = h('div', { class: 'dressup-stage' }, unicornSVG({ fills: art['unicorn-1'] }), zoneEls);
+  // Pozițiile stau aici, nu doar în CSS: fără ele zonele cad toate sub desen și orice accesoriu ajunge pe „cap”.
+  const stage = h('div', { class: 'dressup-stage', style: { position: 'relative' } }, unicornSVG({ fills: art['unicorn-1'] }), zoneEls);
 
   const prompt = h('button', { class: 'prompt', 'aria-label': T.spoken.dressIntro, onClick: () => { sfx.tap(); sayRo(T.spoken.dressIntro); } },
     h('span', { class: 'speaker-big' }, '🔊'),
@@ -39,7 +40,7 @@ export function mount(root, ctx) {
   }));
 
   const doneBtn = h('button', { class: 'btn primary big', dataset: { done: '' }, disabled: true, onClick: () => {
-    if (finishing) return;
+    if (finishing || Object.keys(worn).length < MIN_WORN) return;   // și un click sintetic pe butonul încă dezactivat
     finishing = true;
     doneBtn.disabled = true;
     stage.classList.add('happy');
@@ -76,9 +77,9 @@ export function mount(root, ctx) {
     piece.classList.add('used');
     const el = h('button', {
       class: 'dressup-worn', dataset: { accessory: a.key, zone }, 'aria-label': T.dressNames[a.key],
-      style: { left: pct(UNICORN_ANCHORS[zone].x), top: pct(UNICORN_ANCHORS[zone].y) },
+      style: { position: 'absolute', left: pct(UNICORN_ANCHORS[zone].x), top: pct(UNICORN_ANCHORS[zone].y), transform: 'translate(-50%, -50%)' },
       onClick: () => { if (finishing) return; sfx.pop(); unwear(zone); },   // atingi accesoriul purtat → se dă jos
-    }, a.emoji);
+    }, h('span', { class: 'piece-emoji' }, a.emoji));
     worn[zone] = { piece, el };
     stage.append(el);
     sfx.sparkle();
@@ -122,7 +123,7 @@ export function mount(root, ctx) {
       el.classList.add('returning');                      // în tavă piesa alunecă înapoi (sau se micșorează dacă e purtată)
       el.style.transform = '';
       later(() => el.classList.remove('returning'), 400);
-      if (zone) wear(a, el, zone.dataset.zone);
+      if (zone && !finishing) wear(a, el, zone.dataset.zone);   // după „Gata” nu se mai schimbă nimic
     };
     el.addEventListener('pointerup', end);
     el.addEventListener('pointercancel', end);
