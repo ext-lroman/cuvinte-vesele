@@ -5,6 +5,13 @@ import { UNICORN_TOY } from './art/unicornToy.js';
 const OUTLINE = '#4A3B5C';
 const hexOf = (id) => (COLORS.find((c) => c.id === id) || {}).hex || id;
 
+// Colorează o zonă. Scrie și atributul și stilul: stilul are prioritate față de atribut, iar desenele
+// importate (Inkscape) își țin culoarea în style="" — dacă am schimba doar atributul, zona ar rămâne albă.
+export function paint(node, color) {
+  node.setAttribute('fill', color);
+  node.style.fill = color;
+}
+
 function build(viewBox, inner, { cls = 'art', fills = {}, defaults = {}, blank = false, outlineWidth = null } = {}) {
   const el = new DOMParser().parseFromString(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" class="${cls}"><g stroke="${OUTLINE}" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">${inner}</g></svg>`,
@@ -13,8 +20,7 @@ function build(viewBox, inner, { cls = 'art', fills = {}, defaults = {}, blank =
     const r = node.dataset.region;
     const chosen = fills && fills[r];
     const fill = chosen ? hexOf(chosen) : blank ? '#FFFFFF' : (defaults[r] || '#FFFFFF');
-    node.setAttribute('fill', fill);
-    node.style.fill = fill;                                   // bate și umplerea din style="" (desene din Inkscape)
+    paint(node, fill);
     if (outlineWidth) { node.style.stroke = blank || chosen ? OUTLINE : ''; node.style.strokeWidth = `${outlineWidth}px`; node.style.strokeLinejoin = 'round'; }
   }
   return el;

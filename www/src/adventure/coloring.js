@@ -2,7 +2,7 @@
 import { h } from '../ui.js';
 import { T } from '../strings.js';
 import { COLORS, DINOS } from '../content.js';
-import { unicornSVG, dinoSVG } from '../art.js';
+import { unicornSVG, dinoSVG, paint } from '../art.js';
 
 const hexOf = (id) => COLORS.find((c) => c.id === id).hex;
 
@@ -51,7 +51,7 @@ export function mount(root, ctx) {
       if (!node) return;
       const r = node.dataset.region;
       art[p.key][r] = color;
-      svg.querySelectorAll(`[data-region="${r}"]`).forEach((n) => n.setAttribute('fill', hexOf(color)));
+      svg.querySelectorAll(`[data-region="${r}"]`).forEach((n) => paint(n, hexOf(color)));
       saveArt();
       sfx.pop();
       refresh();

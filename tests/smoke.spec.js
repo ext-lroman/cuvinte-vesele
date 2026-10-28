@@ -154,7 +154,7 @@ test('Aventura 2-3: colorat unicorni și dinozauri, desenele ajung în album', a
   await openWith(page, '#/aventura/unicorni');
   await page.locator('.swatch[data-color="roz"]').click();
   for (const r of ['body', 'mane', 'tail']) await page.locator(`.canvas [data-region="${r}"]`).first().dispatchEvent('click');
-  await expect(page.locator('.canvas [data-region="body"]').first()).toHaveAttribute('fill', '#FF8FAB');
+  await expect.poll(() => page.locator('.canvas [data-region="body"]').first().evaluate((n) => getComputedStyle(n).fill)).toBe('rgb(255, 143, 171)');
   await page.locator('[data-next-page]').click();
   await page.locator('.swatch[data-color="mov"]').click();
   await page.locator('.canvas [data-region="horn"]').first().dispatchEvent('click');
@@ -187,6 +187,7 @@ test('Aventura 5: curcubeul, culoare cu culoare', async ({ page }) => {
   for (let k = 0; k < 6; k++) {
     await expect(page.locator(`.art [data-band="${k}"].target`)).toHaveCount(1, { timeout: 8000 });
     await page.locator(`.swatch[data-color="${RAINBOW[k]}"]`).click();
+    if (k === 0) await expect.poll(() => page.locator('.art [data-band="0"]').evaluate((n) => getComputedStyle(n).fill)).toBe('rgb(255, 90, 95)');
   }
   await expectResult(page, 3);
 });
@@ -194,6 +195,9 @@ test('Aventura 5: curcubeul, culoare cu culoare', async ({ page }) => {
 test('Aventura 6: drumul cu ajutor, călătoria și întâlnirea; abțibildul magic', async ({ page }) => {
   const almost = { ...PROFILE, adventure: { steps: { corn: 3, unicorni: 3, dinozauri: 3, nume: 2, curcubeu: 3 }, art: {} } };
   await openWith(page, '#/aventura/drum', almost);
+  await expect(page.locator('.level-card')).toHaveCount(6);
+  await expect(page.locator('.level-card[data-level="2"]')).toBeDisabled();
+  await page.locator('.level-card[data-level="1"]').click();
   await expect(page.locator('.cell')).toHaveCount(25);
   for (let i = 0; i < 12 && !(await page.locator('.board.ready').count()); i++) {
     await page.locator('[data-hint]').click();
@@ -201,7 +205,7 @@ test('Aventura 6: drumul cu ajutor, călătoria și întâlnirea; abțibildul ma
     if (await ghost.count()) await ghost.click();
   }
   await expect(page.locator('.board.ready')).toHaveCount(1);
-  await page.locator('.rhero.dino').click();
+  await page.locator('.rhero.dino').click({ force: true });   // eroul sare (animație), deci nu e niciodată „stabil”
   await expect(page.locator('.meet')).toBeVisible({ timeout: 10000 });
   await expect(page.locator('.meet.hug')).toHaveCount(1, { timeout: 5000 });
   await expectResult(page, null);

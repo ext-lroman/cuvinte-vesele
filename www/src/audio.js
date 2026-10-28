@@ -85,7 +85,10 @@ function getBuffer(url) {
     const res = await fetch(url);
     if (!res.ok) throw new Error(res.status);
     const data = await res.arrayBuffer();
-    return new Promise((resolve, reject) => c.decodeAudioData(data, resolve, reject));
+    return new Promise((resolve, reject) => {
+      const r = c.decodeAudioData(data, resolve, reject);
+      if (r && typeof r.catch === 'function') r.catch(reject);
+    });
   })();
   buffers.set(url, p);
   p.catch(() => buffers.delete(url));

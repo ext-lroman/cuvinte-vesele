@@ -2,7 +2,7 @@
 import { h, shuffle } from '../ui.js';
 import { T } from '../strings.js';
 import { COLORS, RAINBOW } from '../content.js';
-import { rainbowSVG } from '../art.js';
+import { rainbowSVG, paint } from '../art.js';
 
 const hexOf = (id) => COLORS.find((c) => c.id === id).hex;
 const nameOf = (id) => COLORS.find((c) => c.id === id).ro;
@@ -40,7 +40,7 @@ export function mount(root, ctx) {
     if (k >= RAINBOW.length) return;
     if (id === RAINBOW[k]) {
       fills[`band-${k}`] = id;
-      bands[k].setAttribute('fill', hexOf(id));
+      paint(bands[k], hexOf(id));
       bands[k].classList.remove('target');
       bands[k].classList.add('filled');
       btn.classList.add('used');

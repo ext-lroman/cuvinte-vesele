@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Versiune de cache = commit-ul publicat
-        run: sed -i "s/__BUILD__/${GITHUB_SHA::7}/" www/sw.js && grep -n "const VERSION" www/sw.js
+        run: sed -i "s/__BUILD__/${GITHUB_SHA::7}/" www/sw.js && grep -q "cuvinte-vesele-${GITHUB_SHA::7}" www/sw.js && grep -n "const VERSION" www/sw.js
       - uses: actions/configure-pages@v5
         with:
           enablement: true
